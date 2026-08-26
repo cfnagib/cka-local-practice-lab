@@ -1,0 +1,16 @@
+# Local configuration and runtime credentials
+lab/config.env
+lab/runtime/
+CKA-PREP/.git.original-backup/
+
+# Local VM state and backups
+*.qcow2
+*.img
+*.iso
+*.qcow2.backup*
+
+# Editor and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
