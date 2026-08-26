@@ -12,6 +12,7 @@ body{margin:0;background:#101318;color:#e8eaed;font:14px system-ui}header{height
 let ws,started=false,seconds=0; const q=document.querySelector('#q'),text=document.querySelector('#question'),status=document.querySelector('#status'),title=document.querySelector('#question-title'),video=document.querySelector('#video');
 const terminal=new Terminal({cursorBlink:true,fontSize:14,scrollback:5000,theme:{background:'#050607',foreground:'#e8eaed'}});const fitAddon=new FitAddon.FitAddon();terminal.loadAddon(fitAddon);terminal.open(document.querySelector('#term'));const fitTerminal=()=>{try{fitAddon.fit()}catch{}};requestAnimationFrame(fitTerminal);window.addEventListener('resize',fitTerminal);
 for(let i=1;i<=17;i++)q.add(new Option('Question '+i,i));
+q.addEventListener('change',start);
 async function load(){const r=await fetch('/api/question/'+q.value);const d=await r.json();title.textContent=d.title;text.textContent=d.text;video.href=d.video_url||'';video.style.display=d.video_url?'inline-block':'none';requestAnimationFrame(fitTerminal)}
 function previous(){if(+q.value>1){q.value=+q.value-1;start()}}
 function next(){if(+q.value<17){q.value=+q.value+1;start()}}
