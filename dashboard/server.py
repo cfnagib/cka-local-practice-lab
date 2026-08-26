@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import asyncio, json, os, pathlib, pty, re, subprocess, threading
+import asyncio, json, os, pathlib, pty, re, shlex, subprocess, threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 import websockets
@@ -10,6 +10,7 @@ QUESTION_ROOT = ROOT / "CKA-PREP"
 PORT = int(os.environ.get("CKA_DASHBOARD_PORT", "8790"))
 WS_PORT = int(os.environ.get("CKA_TERMINAL_PORT", "8791"))
 QPA_WARNING = re.compile(r"qt\.qpa\.services:.*?(?:\n.*?/root\"\)\n?)?", re.DOTALL)
+START_LOCK = threading.Lock()
 
 def lab_config(key, fallback):
     config = LAB / "config.env"
@@ -24,6 +25,10 @@ def lab_config(key, fallback):
 
 SSH_USER = lab_config("SSH_USER", os.environ.get("USER", "cfnagib"))
 CONTROL_IP = lab_config("CONTROL_IP", "192.168.122.63")
+
+def run_lab_script(name, *args):
+    command = shlex.join([str(LAB / "scripts" / name), *args])
+    return subprocess.run(["sg", "libvirt", "-c", command], cwd=LAB, text=True, capture_output=True)
 
 def parse_question(n):
     f = question_file(n)
@@ -53,10 +58,16 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path.startswith("/api/start/"):
             n = self.path.rsplit("/", 1)[-1]
-            result = subprocess.run([str(LAB / "scripts" / "reset-question.sh")], cwd=LAB, text=True, capture_output=True)
-            if result.returncode == 0:
-                result = subprocess.run([str(LAB / "scripts" / "run-question.sh"), n], cwd=LAB, text=True, capture_output=True)
-            body = json.dumps({"ok": result.returncode == 0, "output": result.stdout + result.stderr}).encode()
+            if not START_LOCK.acquire(blocking=False):
+                body = json.dumps({"ok": False, "output": "Another question is still being prepared. Please wait."}).encode()
+                self.send_response(409); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body); return
+            try:
+                result = run_lab_script("reset-question.sh")
+                if result.returncode == 0:
+                    result = run_lab_script("run-question.sh", n)
+                body = json.dumps({"ok": result.returncode == 0, "output": result.stdout + result.stderr}).encode()
+            finally:
+                START_LOCK.release()
             self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body); return
         self.send_error(404)
     def do_GET(self):
@@ -88,6 +99,10 @@ async def terminal(ws):
             if isinstance(msg, str): os.write(master, msg.encode())
     finally:
         task.cancel(); proc.terminate(); os.close(master)
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
 async def main():
     async with websockets.serve(terminal, "127.0.0.1", WS_PORT):

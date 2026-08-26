@@ -45,6 +45,9 @@ setup script, solution notes, and validator file.
 
 - Added Helm and `crictl` to the baseline and to future bootstrap builds.
 - Made the libvirt network reset wait for the network to become active.
+- Run the dashboard as a systemd user service rather than through `setsid`.
+  `setsid` caused domains started after a snapshot restore to be destroyed when
+  the reset subprocess ended.
 - Fixed Question 9 to write its prepared policy files with the required privileges.
 - Fixed Question 13 to place the downloaded package at the task's requested path.
 - Adapted Question 15 to the local worker name.

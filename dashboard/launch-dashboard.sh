@@ -4,10 +4,19 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 URL="http://127.0.0.1:8790"
 LOG_FILE="/tmp/cka-local-dashboard.log"
+UNIT="cka-local-dashboard"
 
 # Restart only this dashboard so the launcher always serves the latest files.
-pkill -f '[p]ython3 dashboard/server.py' 2>/dev/null || true
-setsid sg libvirt -c "cd '$ROOT_DIR' && exec python3 dashboard/server.py" </dev/null >"$LOG_FILE" 2>&1 &
+# Do not use setsid here: libvirt snapshot restores started from that session
+# can later destroy the guest domains. A user service keeps the dashboard alive
+# while its reset subprocesses use `sg libvirt` for the required access.
+systemctl --user stop "$UNIT.service" 2>/dev/null || true
+systemctl --user reset-failed "$UNIT.service" 2>/dev/null || true
+systemd-run --user --unit="$UNIT" --collect \
+  --property="WorkingDirectory=$ROOT_DIR" \
+  --property="StandardOutput=append:$LOG_FILE" \
+  --property="StandardError=append:$LOG_FILE" \
+  /usr/bin/python3 "$ROOT_DIR/dashboard/server.py" >/dev/null
 for _ in {1..20}; do
   ss -ltn "sport = :8790" | grep -q LISTEN && break
   sleep 0.25
