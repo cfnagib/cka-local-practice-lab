@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import asyncio, json, os, pathlib, pty, subprocess, threading
+import asyncio, json, os, pathlib, pty, re, subprocess, threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 import websockets
@@ -9,6 +9,7 @@ LAB = ROOT / "lab"
 QUESTION_ROOT = ROOT / "CKA-PREP"
 PORT = int(os.environ.get("CKA_DASHBOARD_PORT", "8790"))
 WS_PORT = int(os.environ.get("CKA_TERMINAL_PORT", "8791"))
+ANSI = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\[[0-?]*[ -/]*[@-~])")
 
 def question_file(n):
     d = QUESTION_ROOT / f"Question-{n}"
@@ -37,14 +38,17 @@ class Handler(SimpleHTTPRequestHandler):
 
 async def terminal(ws):
     master, slave = pty.openpty()
-    proc = subprocess.Popen(["ssh", "-tt", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "cfnagib@192.168.122.63", "bash -i"], stdin=slave, stdout=slave, stderr=slave)
+    proc = subprocess.Popen(["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "cfnagib@192.168.122.63", "bash -i"], stdin=slave, stdout=slave, stderr=slave, env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
     os.close(slave)
     loop = asyncio.get_running_loop()
     async def reader():
         while proc.poll() is None:
             try:
                 data = await loop.run_in_executor(None, os.read, master, 4096)
-                if data: await ws.send(data.decode(errors="replace"))
+                if data:
+                    clean = ANSI.sub("", data.decode(errors="replace")).replace("\x01", "").replace("\x02", "")
+                    clean = "\n".join(line for line in clean.splitlines() if not line.startswith("qt.qpa.services:"))
+                    if clean: await ws.send(clean)
             except (OSError, websockets.exceptions.ConnectionClosed): break
     task = asyncio.create_task(reader())
     try:
