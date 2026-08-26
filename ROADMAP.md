@@ -1,30 +1,22 @@
-# CKA Local Lab Roadmap
+# Roadmap
 
-## الوضع الحالي
+## Completed
 
-- [x] تحديد أن Killercoda مناسب للتجربة السريعة فقط وليس بيئة دائمة.
-- [x] اختيار VMs محلية معزولة لتغطية kubeadm وkubelet وcontainerd وsystemd.
-- [x] اختيار CKA-PREP كبنك أولي من 17 سؤالًا.
-- [ ] فحص KVM/libvirt على Kubuntu.
-- [ ] إنشاء أول VM وتجربة snapshot/restore.
-- [ ] إنشاء Cluster ثلاثي العقد.
-- [ ] تحويل Question 1 إلى سؤال محلي قابل للتشغيل والتحقق.
-- [ ] بناء أوامر start/stop/status/reset.
-- [ ] إضافة Dashboard محلي.
-- [ ] إضافة بقية الأسئلة والموضوعات.
+- Selected CKA-PREP as the initial 17-question practice bank.
+- Built three local KVM/libvirt VMs.
+- Installed Kubernetes, containerd, and Calico.
+- Added start, stop, status, snapshot, reset, setup, and validation scripts.
+- Documented the Pod CIDR/libvirt network overlap and the powered-off baseline requirement.
 
-## قرار مهم
+## Next
 
-لن نبدأ ببناء واجهة كبيرة قبل إثبات دورة واحدة كاملة:
+- Test every question end to end.
+- Add more node-level and troubleshooting scenarios.
+- Build a lightweight local dashboard.
+- Add timed mock-exam mode and progress tracking.
 
-```text
-VMs → Kubernetes → Question 1 → Validate → Reset → إعادة المحاولة
-```
+## Training modes
 
-إذا نجحت هذه الدورة، نكرر نفس القالب على باقي الأسئلة. هذا يقلل التعقيد ويضمن أن كل زر في الواجهة يؤدي إلى عملية حقيقية قابلة للاختبار.
-
-## طريقة العمل أثناء التدريب
-
-- وضع Learning: بدون وقت، السؤال واضح، تلميحات تدريجية، والحل لا يظهر إلا عند الطلب.
-- وضع Practice: وقت اختياري، لا حلول أثناء المحاولة، وValidate في النهاية.
-- وضع Mock Exam: 17 مهمة، ساعتان، لا تلميحات ولا حلول حتى التسليم.
+- Learning: unlimited time, progressive hints, solutions only on request.
+- Practice: optional timer and validation at the end.
+- Mock exam: 17 tasks in two hours with no hints or solutions.

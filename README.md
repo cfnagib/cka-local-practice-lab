@@ -1,105 +1,41 @@
-# خطة التحضير لامتحان CKA
+# CKA Local Practice Lab
 
-## الهدف
+This project provides an isolated, repeatable local environment for practical CKA preparation. Kubernetes runs inside KVM/libvirt VMs, so experiments do not affect the host operating system.
 
-التدريب عمليًا على مهام شبيهة بالامتحان، وليس حفظ إجابات ثابتة. الامتحان الحقيقي عملي: 17 مهمة خلال ساعتين. هذا المستند هو نقطة البداية عند المتابعة من جهاز آخر.
+## Contents
 
-## المصادر
+- `CKA-PREP/`: 17 hands-on CKA practice questions with setup and validation scripts.
+- `lab/`: local three-node Kubernetes lab automation.
+- `PROJECT.md`: architecture and design decisions.
+- `ROADMAP.md`: implementation status and future work.
 
-- الأسئلة واللابات: [CKA-PREP](https://github.com/CameronMetcalfe22/CKA-PREP)
-- بيئة Kubernetes مجانية للتدريب: [Killercoda CKA Playground](https://killercoda.com/playgrounds/scenario/cka)
-- محاكاة الامتحان الرسمية: [Killer.sh](https://killer.sh/cka) — تأتي عادةً مع تسجيل امتحان Linux Foundation.
-- توثيق Kubernetes: [kubernetes.io/docs](https://kubernetes.io/docs/)
+## Local workflow
 
-## كيف تعمل المصادر معًا؟
+Run commands from `lab/`:
 
-`CKA-PREP` يحتوي على الأسئلة والسكريبتات والحلول، لكنه لا يحتوي على Cluster جاهز. لذلك نفتح Killercoda، التي توفر Cluster مؤقتًا داخل المتصفح، ثم نشغّل أسئلة الريبو داخلها.
+```bash
+sg libvirt -c './scripts/create-vms.sh'
+sg libvirt -c './scripts/bootstrap-k8s.sh'
+sg libvirt -c './scripts/snapshot-baseline.sh'
+./scripts/practice.sh 1
+```
 
-## البداية من جهاز جديد
+The practice script restores the baseline, prepares the selected question, opens an SSH terminal on the control-plane, and provides validation and hint options after the session ends.
 
-1. افتح [Killercoda CKA Playground](https://killercoda.com/playgrounds/scenario/cka).
-2. انتظر ظهور Terminal وفيه prompt مثل `root@controlplane:~$`.
-3. داخل Terminal نزّل الريبو:
+## Training method
 
-   ```bash
-   git clone https://github.com/CameronMetcalfe22/CKA-PREP
-   ```
+Read each task first, make a short plan, solve it independently, validate it, and use hints only after an honest attempt. Work through the task in the same order as written. Remember short common commands; use Kubernetes or Helm documentation for long commands and exact flags. These questions are practice patterns, not exam dumps.
 
-4. ابدأ بالسؤال المطلوب، مثل السؤال الأول:
+## Sources
 
-   ```bash
-   chmod +x CKA-PREP/Question-1/LabSetUp.bash
-   ./CKA-PREP/Question-1/LabSetUp.bash
-   ```
+- [CKA-PREP](https://github.com/CameronMetcalfe22/CKA-PREP)
+- [Kubernetes documentation](https://kubernetes.io/docs/)
+- [Killer.sh CKA simulator](https://killer.sh/cka)
 
-5. اعرض نص السؤال. اسم الملف في النسخة الحالية هو `Questions.bash`:
+## Troubleshooting
 
-   ```bash
-   cat CKA-PREP/Question-1/Questions.bash
-   ```
+The libvirt network is `192.168.122.0/24`. The Kubernetes Pod CIDR is intentionally `10.244.0.0/16`; using Calico's default `192.168.0.0/16` overlaps the libvirt subnet and can make ping and SSH fail after Calico starts. Baseline snapshots must be created while VMs are powered off. Check `domstate`, `domifaddr`, ping, and SSH in that order.
 
-6. حل السؤال بنفسك. لا تفتح `SolutionNotes.bash` قبل المحاولة.
-7. بعد الحل شغّل التحقق:
+## Coaching rules
 
-   ```bash
-   cd CKA-PREP/Question-1
-   chmod +x validate.sh
-   ./validate.sh
-   ```
-
-## طريقة التدريب الصحيحة
-
-لكل سؤال:
-
-1. اقرأ المطلوب وافهم الهدف.
-2. اكتب خطة قصيرة قبل تنفيذ الأوامر.
-3. نفّذ الحل بنفسك.
-4. استخدم `validate.sh`.
-5. إذا فشلت، اقرأ التلميحات فقط ثم أعد المحاولة.
-6. بعد النجاح احذف/أعد تهيئة البيئة وأعد السؤال من الذاكرة.
-7. سجّل الموضوع الذي أخطأت فيه في ملف ملاحظات شخصي.
-
-لا تتعامل مع الأسئلة كأنها تسريبات مضمونة للامتحان. الهدف هو فهم الأنماط والسرعة والتعامل مع Cluster غير مألوف.
-
-## ترتيب العمل
-
-- حل Questions 1–17 مرة أولى بدون حلول.
-- أعد الأسئلة التي أخطأت فيها مرتين.
-- تدرب خصوصًا على: troubleshooting، RBAC، NetworkPolicy، Storage، Services/Ingress، etcd، ترقية Cluster، node drain، Helm وGateway/HTTPRoute حسب المنهج الحالي.
-- بعد ذلك استخدم Killer.sh كاختبار زمني نهائي.
-
-## قواعد المتابعة مع المساعد
-
-عند متابعة التدريب، أرسل نص السؤال أو نتيجة الأمر. المطلوب أن يشرح المساعد الفكرة ويعطي تلميحات تدريجية، وليس الحل الكامل مباشرة، إلا إذا طلبت الحل صراحة.
-
-### أسلوب التدريب الإجباري — ترتيب نص السؤال
-
-- تعامل مع المستخدم كأنه داخل امتحان CKA حقيقي.
-- لا تعطِ أوامر أو كودًا جاهزًا للنسخ واللصق من البداية، ولا تستخدم أسلوب الحل الكامل المباشر.
-- عند بداية كل سؤال، اشرح الهدف العام في سطرين.
-- بعد ذلك امشِ **بنفس ترتيب نص السؤال حرفيًا**: الجزء الأول، ثم الثاني، ثم الثالث، وهكذا.
-- لكل جزء من السؤال، اعرض هذا التسلسل:
-  1. ماذا يقول الجزء بلغة بسيطة؟
-  2. ما النتيجة التي يريدها؟
-  3. ما الأداة أو المفهوم الذي يجب أن أفكر فيه؟
-  4. ماذا أبحث عنه في التوثيق إذا احتجت؟
-  5. ما التلميح الذي يقودني للأمر؟
-  6. نفّذ المستخدم بنفسه، ثم نتحقق من النتيجة.
-- لا تنتقل للجزء التالي قبل التأكد من الجزء الحالي.
-- إذا احتاج السؤال توثيقًا، وجّه المستخدم إلى الصفحة أو عبارة البحث المناسبة، واتركه يستخرج الأمر أو الخيار بنفسه.
-- أعطِ تلميحًا واحدًا في كل مرة، من العام إلى المحدد.
-- لا تعرض الحل الكامل أو الأمر النهائي إلا إذا طلب المستخدم ذلك صراحة.
-- بعد كل محاولة، اطلب من المستخدم تفسير ما فعله ولماذا، ثم استخدم `validate.sh` كتصحيح.
-- بعد النجاح، اجعل المستخدم يعيد السؤال من الصفر مرة ثانية بدون حلول، ثم مرة ثالثة بوقت محدد.
-- الهدف هو فهم طريقة تفكيك نص السؤال وتحويله إلى خطوات تنفيذ، لا حفظ أسئلة الريبو.
-- ميّز بين نوعين من المعلومات أثناء التدريب:
-  - الأوامر القصيرة والأساسية التي يُتوقع تذكرها، مثل إضافة Helm repository أو فحص الموارد: اطلب من المستخدم محاولة كتابتها من الذاكرة أولًا.
-  - الأوامر الطويلة أو خيارات Helm/Kubernetes الدقيقة: لا تطلب حفظها؛ وجّه المستخدم إلى مكان التوثيق وعبارة البحث المناسبة، ثم ساعده على استخراج الجزء المطلوب.
-- عند استخدام التوثيق، علّم المستخدم كيف يقرأ صفحة السؤال ويستخرج اسم الأداة، اسم الخيار، قيمة الخيار، والإصدار أو namespace، ثم يركّب الأمر بنفسه.
-
-## ملاحظات مهمة
-
-- `SolutionNotes.bash` يحتوي على تلميحات/حلول.
-- بعض الأسئلة تغيّر أو تكسر أجزاء من Cluster؛ ابدأ Session جديدة في Killercoda عند الحاجة.
-- Killercoda مؤقتة؛ لا تعتمد على بقاء الملفات بعد انتهاء Session.
-- لا تستخدم Exam Dumps أو أسئلة مسرّبة؛ استخدم مواد تدريبية شرعية فقط.
+The assistant should explain the task first, then guide one part at a time in the order written. It should provide progressive hints rather than complete solutions, explain what to search for in documentation, and wait for validation before moving to the next part.
