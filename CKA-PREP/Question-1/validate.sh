@@ -15,7 +15,7 @@ fi
 
 # Check 2: Verify /root/argo-helm.yaml file exists
 echo "Checking if /root/argo-helm.yaml exists..."
-if [ -f "/root/argo-helm.yaml" ]; then
+if sudo test -f "/root/argo-helm.yaml"; then
     echo "  [PASS] /root/argo-helm.yaml file exists."
     file_exists=true
 else
@@ -34,8 +34,8 @@ if ${file_exists}; then
     # For now, we'll check for the absence of CRDs and a general helm-generated structure.
 
     # Check for absence of CRDs
-    if ! grep -q "kind: CustomResourceDefinition" "/root/argo-helm.yaml" && \
-       ! grep -q "apiextensions.k8s.io/v1" "/root/argo-helm.yaml"; then
+    if ! sudo grep -q "kind: CustomResourceDefinition" "/root/argo-helm.yaml" && \
+       ! sudo grep -q "apiextensions.k8s.io/v1" "/root/argo-helm.yaml"; then
         echo "  [PASS] /root/argo-helm.yaml does NOT contain CustomResourceDefinitions."
         no_crds=true
     else
@@ -48,8 +48,8 @@ if ${file_exists}; then
     # For now, we will assume if CRDs are not present and the file exists, it's a good start.
 
     # A very basic check to see if it looks like a Helm output for argocd
-    if grep -q "app.kubernetes.io/instance: argocd" "/root/argo-helm.yaml" && \
-       grep -q "app.kubernetes.io/managed-by: Helm" "/root/argo-helm.yaml"; then
+    if sudo grep -q "app.kubernetes.io/instance: argocd" "/root/argo-helm.yaml" && \
+       sudo grep -q "app.kubernetes.io/managed-by: Helm" "/root/argo-helm.yaml"; then
         echo "  [PASS] /root/argo-helm.yaml appears to be a Helm-generated manifest for Argo CD."
         helm_manifest=true
     else
