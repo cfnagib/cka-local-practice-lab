@@ -2,7 +2,7 @@
 
 set -e
 
-NODE="node01"
+NODE="cka-worker1"
 TAINT_KEY="PERMISSION"
 TAINT_VALUE="granted"
 TAINT_EFFECT="NoSchedule"

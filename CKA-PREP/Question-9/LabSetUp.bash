@@ -56,10 +56,10 @@ spec:
 EOF
 
 echo "🔹 Creating NetworkPolicy files..."
-mkdir -p /root/network-policies
-cd /root/network-policies
+sudo mkdir -p /root/network-policies
+cd /tmp
 
-cat <<EOF > network-policy-1.yaml
+cat <<EOF | sudo tee /root/network-policies/network-policy-1.yaml >/dev/null
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -73,7 +73,7 @@ spec:
   - Ingress
 EOF
 
-cat <<EOF > network-policy-2.yaml
+cat <<EOF | sudo tee /root/network-policies/network-policy-2.yaml >/dev/null
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -97,7 +97,7 @@ spec:
   - Ingress
 EOF
 
-cat <<EOF > network-policy-3.yaml
+cat <<EOF | sudo tee /root/network-policies/network-policy-3.yaml >/dev/null
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -122,5 +122,4 @@ spec:
   - Ingress
 EOF
 
-cd /
 echo "✅ Lab setup complete. Three network policy files created in /root/network-policies."

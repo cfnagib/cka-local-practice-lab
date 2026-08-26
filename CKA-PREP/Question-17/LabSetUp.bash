@@ -66,7 +66,6 @@ spec:
 EOF
 
 # Step 5: Create a ClusterIP service
-kubectl -n nginx-static expose deployment nginx-static --port=443 --target-port=443 --name=nginx-static
+kubectl -n nginx-static expose deployment nginx-static --port=443 --target-port=443 --name=nginx-service
 
 echo "nginx TLS lab setup complete."
-
