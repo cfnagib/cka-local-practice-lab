@@ -31,7 +31,7 @@ net.ipv4.ip_forward = 1
 SYSCTL
 sudo sysctl --system >/dev/null
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl gpg apt-transport-https containerd
+sudo apt-get install -y ca-certificates curl gpg apt-transport-https containerd jq
 sudo mkdir -p /etc/containerd
 containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
 sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
