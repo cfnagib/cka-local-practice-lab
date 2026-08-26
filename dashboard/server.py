@@ -7,7 +7,8 @@ import websockets
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 LAB = ROOT / "lab"
 QUESTION_ROOT = ROOT / "CKA-PREP"
-PORT = int(os.environ.get("CKA_DASHBOARD_PORT", "8787"))
+PORT = int(os.environ.get("CKA_DASHBOARD_PORT", "8790"))
+WS_PORT = int(os.environ.get("CKA_TERMINAL_PORT", "8791"))
 
 def question_file(n):
     d = QUESTION_ROOT / f"Question-{n}"
@@ -53,7 +54,7 @@ async def terminal(ws):
         task.cancel(); proc.terminate(); os.close(master)
 
 async def main():
-    async with websockets.serve(terminal, "127.0.0.1", 8788):
+    async with websockets.serve(terminal, "127.0.0.1", WS_PORT):
         print(f"Dashboard: http://127.0.0.1:{PORT}")
         await asyncio.Future()
 

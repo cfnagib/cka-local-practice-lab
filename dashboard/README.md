@@ -8,4 +8,4 @@ Start it from the project root:
 python3 dashboard/server.py
 ```
 
-Open http://127.0.0.1:8787. Keep the terminal used to start the server open.
+Open http://127.0.0.1:8790. The dashboard uses WebSocket port 8791 for the terminal. Keep the terminal used to start the server open.
