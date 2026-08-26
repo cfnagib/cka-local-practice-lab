@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import asyncio, json, os, pathlib, pty, subprocess, threading
+import asyncio, json, os, pathlib, pty, re, subprocess, threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 import websockets
@@ -9,6 +9,27 @@ LAB = ROOT / "lab"
 QUESTION_ROOT = ROOT / "CKA-PREP"
 PORT = int(os.environ.get("CKA_DASHBOARD_PORT", "8790"))
 WS_PORT = int(os.environ.get("CKA_TERMINAL_PORT", "8791"))
+QPA_WARNING = re.compile(r"qt\.qpa\.services:.*?(?:\n.*?/root\"\)\n?)?", re.DOTALL)
+
+def parse_question(n):
+    f = question_file(n)
+    if not f:
+        return None
+    lines = f.read_text(errors="replace").splitlines()
+    title = f"Question {n}"
+    body = []
+    video_url = None
+    for raw in lines:
+        line = raw.removeprefix("#").lstrip()
+        if raw.startswith("# Question "):
+            title = f"Question {n} · {line.removeprefix('Question ')}"
+        elif line in {"Task", "Video link"}:
+            continue
+        elif line.startswith("https://youtu.be/"):
+            video_url = line
+        else:
+            body.append(line)
+    return {"number": n, "title": title, "text": "\n".join(body).strip(), "video_url": video_url}
 
 def question_file(n):
     d = QUESTION_ROOT / f"Question-{n}"
@@ -27,9 +48,8 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/question/"):
             n = self.path.rsplit("/", 1)[-1]
-            f = question_file(n)
-            if f:
-                data = {"number": n, "text": f.read_text(errors="replace")}
+            data = parse_question(n)
+            if data:
                 body = json.dumps(data).encode()
                 self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body); return
         return super().do_GET()
@@ -44,7 +64,9 @@ async def terminal(ws):
         while proc.poll() is None:
             try:
                 data = await loop.run_in_executor(None, os.read, master, 4096)
-                if data: await ws.send(data.decode(errors="replace"))
+                if data:
+                    clean = QPA_WARNING.sub("", data.decode(errors="replace"))
+                    if clean: await ws.send(clean)
             except (OSError, websockets.exceptions.ConnectionClosed): break
     task = asyncio.create_task(reader())
     try:
