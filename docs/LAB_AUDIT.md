@@ -44,7 +44,10 @@ setup script, solution notes, and validator file.
 ## Repairs Made During This Audit
 
 - Added Helm and `crictl` to the baseline and to future bootstrap builds.
-- Made the libvirt network reset wait for the network to become active.
+- Reset retains an already active libvirt bridge instead of destroying it.
+  If the bridge is inactive, reset starts it safely and waits for it to become
+  active before restoring the VMs. This avoids a libvirt start-state race that
+  could otherwise cause a dashboard preparation failure.
 - Run the dashboard as a systemd user service rather than through `setsid`.
   `setsid` caused domains started after a snapshot restore to be destroyed when
   the reset subprocess ended.

@@ -6,11 +6,16 @@ SNAPSHOT="${1:-cka-baseline}"
 for name in cka-controlplane cka-worker1 cka-worker2; do
   virsh -c qemu:///system destroy "$name" 2>/dev/null || true
 done
-# Recreate the bridge only after all tap devices have been detached.
-virsh -c qemu:///system net-destroy "$NETWORK" 2>/dev/null || true
-virsh -c qemu:///system net-start "$NETWORK" 2>/dev/null || true
+
+# Keep an already active persistent bridge. Tearing it down and immediately
+# recreating it is asynchronous on some hosts: libvirt can report success
+# before dnsmasq and virbr0 are usable by the VM guests.
+if ! virsh -c qemu:///system net-info "$NETWORK" 2>/dev/null | grep -q 'Active:.*yes'; then
+  # A parallel libvirt event can activate it after the check above.
+  virsh -c qemu:///system net-start "$NETWORK" 2>/dev/null || true
+fi
 network_active=false
-for attempt in {1..30}; do
+for attempt in {1..60}; do
   if virsh -c qemu:///system net-info "$NETWORK" | grep -q 'Active:.*yes'; then
     network_active=true
     break
