@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=CKA Local Practice
+Comment=Open the local CKA practice dashboard
+Exec=/home/cfnagib/GoogleDrive/GPTPro/CKA/dashboard/launch-dashboard.sh
+Terminal=false
+Categories=Education;Development;
+Icon=utilities-terminal

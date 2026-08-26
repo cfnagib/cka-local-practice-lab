@@ -9,3 +9,5 @@ python3 dashboard/server.py
 ```
 
 Open http://127.0.0.1:8790. The dashboard uses WebSocket port 8791 for the terminal. Keep the terminal used to start the server open.
+
+For daily use, install the desktop launcher and open **CKA Local Practice** from the application menu. It starts the local server in the background and opens the dashboard automatically.
