@@ -14,3 +14,5 @@ CKA-PREP/.git.original-backup/
 .vscode/
 *.swp
 .DS_Store
+__pycache__/
+*.pyc
