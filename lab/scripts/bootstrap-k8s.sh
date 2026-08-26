@@ -51,6 +51,9 @@ install_node "$CONTROL_IP"
 install_node "$WORKER1_IP"
 install_node "$WORKER2_IP"
 
+echo "Installing Helm on the control plane"
+remote "$CONTROL_IP" 'sudo snap install helm --classic 2>/dev/null || sudo apt-get install -y helm'
+
 echo "Initializing control plane"
 remote "$CONTROL_IP" 'sudo kubeadm init --pod-network-cidr=10.244.0.0/16'
 remote "$CONTROL_IP" 'mkdir -p "$HOME/.kube" && sudo cp /etc/kubernetes/admin.conf "$HOME/.kube/config" && sudo chown "$(id -u):$(id -g)" "$HOME/.kube/config"'
