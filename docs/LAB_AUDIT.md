@@ -48,6 +48,9 @@ setup script, solution notes, and validator file.
   If the bridge is inactive, reset starts it safely and waits for it to become
   active before restoring the VMs. This avoids a libvirt start-state race that
   could otherwise cause a dashboard preparation failure.
+- The network check captures `virsh net-info` output before inspecting it.
+  With Bash `pipefail`, piping that command to `grep -q` can incorrectly fail
+  because `grep` closes the pipe as soon as it finds a match.
 - Run the dashboard as a systemd user service rather than through `setsid`.
   `setsid` caused domains started after a snapshot restore to be destroyed when
   the reset subprocess ended.
