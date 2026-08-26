@@ -11,6 +11,20 @@ PORT = int(os.environ.get("CKA_DASHBOARD_PORT", "8790"))
 WS_PORT = int(os.environ.get("CKA_TERMINAL_PORT", "8791"))
 QPA_WARNING = re.compile(r"qt\.qpa\.services:.*?(?:\n.*?/root\"\)\n?)?", re.DOTALL)
 
+def lab_config(key, fallback):
+    config = LAB / "config.env"
+    if not config.exists():
+        return fallback
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; printf "%s" "${!2}"', "bash", str(config), key],
+        text=True,
+        capture_output=True,
+    )
+    return result.stdout or fallback
+
+SSH_USER = lab_config("SSH_USER", os.environ.get("USER", "cfnagib"))
+CONTROL_IP = lab_config("CONTROL_IP", "192.168.122.63")
+
 def parse_question(n):
     f = question_file(n)
     if not f:
@@ -57,7 +71,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 async def terminal(ws):
     master, slave = pty.openpty()
-    proc = subprocess.Popen(["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "cfnagib@192.168.122.63", "bash -i"], stdin=slave, stdout=slave, stderr=slave, env={**os.environ, "TERM": "xterm-256color", "QT_QPA_PLATFORM": "offscreen"})
+    proc = subprocess.Popen(["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f"{SSH_USER}@{CONTROL_IP}", "bash -i"], stdin=slave, stdout=slave, stderr=slave, env={**os.environ, "TERM": "xterm-256color", "QT_QPA_PLATFORM": "offscreen"})
     os.close(slave)
     loop = asyncio.get_running_loop()
     async def reader():

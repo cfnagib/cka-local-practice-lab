@@ -9,6 +9,12 @@ This project provides an isolated, repeatable local environment for practical CK
 - `PROJECT.md`: architecture and design decisions.
 - `ROADMAP.md`: implementation status and future work.
 
+## New-machine setup
+
+The repository contains automation and documentation, not VM disk images or
+libvirt snapshots. Follow [NEW_MACHINE_SETUP.md](docs/NEW_MACHINE_SETUP.md) once
+on a new Ubuntu or Kubuntu host to recreate the same environment.
+
 ## Local workflow
 
 Run commands from `lab/`:
@@ -19,6 +25,9 @@ sg libvirt -c './scripts/bootstrap-k8s.sh'
 sg libvirt -c './scripts/snapshot-baseline.sh'
 ./scripts/practice.sh 1
 ```
+
+For the dashboard launcher, run `./dashboard/install-launcher.sh` once and then
+open **CKA Local Practice** from the application menu.
 
 The practice script restores the baseline, prepares the selected question, opens an SSH terminal on the control-plane, and provides validation and hint options after the session ends.
 
