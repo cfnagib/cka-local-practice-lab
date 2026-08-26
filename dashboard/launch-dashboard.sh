@@ -5,6 +5,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 URL="http://127.0.0.1:8790"
 LOG_FILE="/tmp/cka-local-dashboard.log"
 UNIT="cka-local-dashboard"
+TAILSCALE_IP=""
+
+if command -v tailscale >/dev/null 2>&1; then
+  TAILSCALE_IP="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
+fi
 
 # Restart only this dashboard so the launcher always serves the latest files.
 # Do not use setsid here: libvirt snapshot restores started from that session
@@ -12,7 +17,11 @@ UNIT="cka-local-dashboard"
 # while its reset subprocesses use `sg libvirt` for the required access.
 systemctl --user stop "$UNIT.service" 2>/dev/null || true
 systemctl --user reset-failed "$UNIT.service" 2>/dev/null || true
-systemd-run --user --unit="$UNIT" --collect \
+RUN_ENV=()
+if [[ -n "$TAILSCALE_IP" ]]; then
+  RUN_ENV+=("--setenv=CKA_TAILSCALE_IP=$TAILSCALE_IP")
+fi
+systemd-run --user --unit="$UNIT" --collect "${RUN_ENV[@]}" \
   --property="WorkingDirectory=$ROOT_DIR" \
   --property="StandardOutput=append:$LOG_FILE" \
   --property="StandardError=append:$LOG_FILE" \
@@ -23,3 +32,6 @@ for _ in {1..20}; do
 done
 
 xdg-open "$URL" >/dev/null 2>&1 &
+if [[ -n "$TAILSCALE_IP" ]]; then
+  echo "Tailscale access: http://$TAILSCALE_IP:8790"
+fi

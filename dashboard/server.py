@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import asyncio, json, os, pathlib, pty, re, shlex, subprocess, threading
+import asyncio, json, os, pathlib, pty, re, shlex, subprocess, threading, time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 import websockets
@@ -9,8 +9,13 @@ LAB = ROOT / "lab"
 QUESTION_ROOT = ROOT / "CKA-PREP"
 PORT = int(os.environ.get("CKA_DASHBOARD_PORT", "8790"))
 WS_PORT = int(os.environ.get("CKA_TERMINAL_PORT", "8791"))
+TAILSCALE_IP = os.environ.get("CKA_TAILSCALE_IP", "").strip()
+LISTEN_HOSTS = ["127.0.0.1"] + ([TAILSCALE_IP] if TAILSCALE_IP else [])
+STATE_DIR = pathlib.Path(os.environ.get("XDG_STATE_HOME", pathlib.Path.home() / ".local/state")) / "cka-local-practice"
+STATE_FILE = STATE_DIR / "progress.json"
 QPA_WARNING = re.compile(r"qt\.qpa\.services:.*?(?:\n.*?/root\"\)\n?)?", re.DOTALL)
 START_LOCK = threading.Lock()
+STATE_LOCK = threading.Lock()
 
 def lab_config(key, fallback):
     config = LAB / "config.env"
@@ -29,6 +34,69 @@ CONTROL_IP = lab_config("CONTROL_IP", "192.168.122.63")
 def run_lab_script(name, *args):
     command = shlex.join([str(LAB / "scripts" / name), *args])
     return subprocess.run(["sg", "libvirt", "-c", command], cwd=LAB, text=True, capture_output=True)
+
+def valid_question(n):
+    return n.isdigit() and 1 <= int(n) <= 17 and question_file(int(n)) is not None
+
+def load_progress():
+    with STATE_LOCK:
+        try:
+            return json.loads(STATE_FILE.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {"questions": {}, "active": {}}
+
+def save_progress(progress):
+    with STATE_LOCK:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        temp = STATE_FILE.with_suffix(".tmp")
+        temp.write_text(json.dumps(progress, indent=2, sort_keys=True))
+        temp.replace(STATE_FILE)
+
+def begin_attempt(n):
+    progress = load_progress()
+    key = str(n)
+    record = progress["questions"].setdefault(key, {"attempts": 0, "solved": False})
+    record["attempts"] += 1
+    progress["active"] = {"question": n, "started_at": int(time.time())}
+    save_progress(progress)
+
+def finish_validation(n, passed):
+    progress = load_progress()
+    key = str(n)
+    record = progress["questions"].setdefault(key, {"attempts": 0, "solved": False})
+    active = progress.get("active", {})
+    elapsed = max(0, int(time.time()) - int(active.get("started_at", time.time()))) if active.get("question") == n else None
+    record["last_validation_passed"] = passed
+    if elapsed is not None:
+        record["last_time_seconds"] = elapsed
+    if passed:
+        record["solved"] = True
+        record["solved_at"] = int(time.time())
+        if elapsed is not None:
+            best = record.get("best_time_seconds")
+            record["best_time_seconds"] = elapsed if best is None else min(best, elapsed)
+    save_progress(progress)
+    return progress
+
+def question_hint(n, level):
+    notes = QUESTION_ROOT / f"Question-{n}" / "SolutionNotes.bash"
+    if not notes.exists():
+        return "No hint is available for this question. Use the relevant command help and official documentation."
+    lines = [line.removeprefix("#").strip() for line in notes.read_text(errors="replace").splitlines()]
+    lines = [line for line in lines if line and not line.startswith("!")]
+    if not lines:
+        return "No hint is available for this question. Use the relevant command help and official documentation."
+    chunk = 3
+    start = max(0, (level - 1) * chunk)
+    selection = lines[start:start + chunk]
+    return "\n".join(selection) if selection else "No further hints are available."
+
+def run_validation(n):
+    remote = f"bash /tmp/cka-question-{n}/validate.sh"
+    return subprocess.run([
+        "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null", f"{SSH_USER}@{CONTROL_IP}", remote,
+    ], text=True, capture_output=True, timeout=90)
 
 def parse_question(n):
     f = question_file(n)
@@ -55,28 +123,58 @@ def question_file(n):
     return next((d / x for x in ("Questions.bash", "Question.bash") if (d / x).exists()), None)
 
 class Handler(SimpleHTTPRequestHandler):
+    def respond_json(self, data, status=200):
+        body = json.dumps(data).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_POST(self):
         if self.path.startswith("/api/start/"):
             n = self.path.rsplit("/", 1)[-1]
+            if not valid_question(n):
+                return self.respond_json({"ok": False, "output": "Question not found."}, 404)
             if not START_LOCK.acquire(blocking=False):
-                body = json.dumps({"ok": False, "output": "Another question is still being prepared. Please wait."}).encode()
-                self.send_response(409); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body); return
+                return self.respond_json({"ok": False, "output": "Another question is still being prepared. Please wait."}, 409)
             try:
                 result = run_lab_script("reset-question.sh")
                 if result.returncode == 0:
                     result = run_lab_script("run-question.sh", n)
-                body = json.dumps({"ok": result.returncode == 0, "output": result.stdout + result.stderr}).encode()
+                if result.returncode == 0:
+                    begin_attempt(int(n))
+                response = {"ok": result.returncode == 0, "output": result.stdout + result.stderr}
             finally:
                 START_LOCK.release()
-            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body); return
+            return self.respond_json(response)
+        if self.path.startswith("/api/validate/"):
+            n = self.path.rsplit("/", 1)[-1]
+            if not valid_question(n):
+                return self.respond_json({"ok": False, "output": "Question not found."}, 404)
+            try:
+                result = run_validation(int(n))
+                output = result.stdout + result.stderr
+                if result.returncode == 255 and "ssh:" in output:
+                    return self.respond_json({"ok": False, "environment_error": True, "output": "The practice VM is unavailable. Reset the question and try again."})
+                passed = result.returncode == 0
+                progress = finish_validation(int(n), passed)
+                return self.respond_json({"ok": passed, "output": output, "progress": progress})
+            except subprocess.TimeoutExpired:
+                return self.respond_json({"ok": False, "output": "Validation timed out. Reset the question and try again."})
         self.send_error(404)
     def do_GET(self):
         if self.path.startswith("/api/question/"):
             n = self.path.rsplit("/", 1)[-1]
             data = parse_question(n)
             if data:
-                body = json.dumps(data).encode()
-                self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(body); return
+                return self.respond_json(data)
+        if self.path == "/api/progress":
+            return self.respond_json(load_progress())
+        if self.path.startswith("/api/hint/"):
+            parts = self.path.strip("/").split("/")
+            if len(parts) == 4 and valid_question(parts[2]) and parts[3].isdigit():
+                return self.respond_json({"hint": question_hint(int(parts[2]), max(1, int(parts[3])) )})
         return super().do_GET()
     def log_message(self, *_): pass
 
@@ -105,12 +203,19 @@ async def terminal(ws):
             proc.kill()
 
 async def main():
-    async with websockets.serve(terminal, "127.0.0.1", WS_PORT):
-        print(f"Dashboard: http://127.0.0.1:{PORT}")
+    websocket_servers = [await websockets.serve(terminal, host, WS_PORT) for host in LISTEN_HOSTS]
+    for host in LISTEN_HOSTS:
+        print(f"Dashboard: http://{host}:{PORT}")
+    try:
         await asyncio.Future()
+    finally:
+        for server in websocket_servers:
+            server.close()
+            await server.wait_closed()
 
 if __name__ == "__main__":
     os.chdir(pathlib.Path(__file__).parent / "static")
-    http = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    threading.Thread(target=http.serve_forever, daemon=True).start()
+    for host in LISTEN_HOSTS:
+        http = ThreadingHTTPServer((host, PORT), Handler)
+        threading.Thread(target=http.serve_forever, daemon=True).start()
     asyncio.run(main())

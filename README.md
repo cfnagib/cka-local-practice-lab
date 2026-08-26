@@ -29,7 +29,18 @@ sg libvirt -c './scripts/snapshot-baseline.sh'
 For the dashboard launcher, run `./dashboard/install-launcher.sh` once and then
 open **CKA Local Practice** from the application menu.
 
-The practice script restores the baseline, prepares the selected question, opens an SSH terminal on the control-plane, and provides validation and hint options after the session ends.
+The dashboard restores the baseline, prepares the selected question, opens an
+SSH terminal on the control-plane, and provides progressive hints, validation,
+and a persistent practice report. Progress is stored locally outside the VMs,
+so resetting a question never erases solved status, attempts, or recorded time.
+
+## Tailscale access
+
+When Tailscale is installed and connected, launching **CKA Local Practice** also
+binds the dashboard to this host's Tailscale IPv4 address. From a Tailscale
+connected Mac, open `http://TAILSCALE-IP:8790` in a browser. The terminal uses
+the same encrypted Tailscale connection. The dashboard is not exposed on the
+public internet or on the ordinary LAN.
 
 ## Training method
 
