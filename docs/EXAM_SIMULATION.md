@@ -10,8 +10,8 @@ It mirrors the practical CKA workflow:
 - Each task identifies its target host. Use `ssh controlplane`, `ssh worker1`,
   or `ssh worker2` from `cka-base` before working.
 - Terminal copy and paste use `Ctrl+Shift+C` and `Ctrl+Shift+V`, matching the
-  real CKA terminal. The local dashboard uses a dedicated WebKit desktop window
-  so Chrome's Inspect Element shortcut cannot intercept those keys.
+  real CKA terminal. The local dashboard uses the native VTE terminal component,
+  so text selection and Linux terminal shortcuts work without Chrome intercepting them.
 
 The same screen also exposes explicit learning tools: video links, progressive
 hints, per-question validation, saved attempts, solved status, best time, and

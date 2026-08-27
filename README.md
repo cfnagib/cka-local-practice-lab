@@ -30,7 +30,7 @@ For the dashboard launcher, run `./dashboard/install-launcher.sh` once and then
 open **CKA Local Practice** from the application menu.
 
 The dashboard restores the baseline, prepares the selected question, and opens
-the same task panel and SSH terminal in one dedicated desktop window. This
+the same task panel and a native Linux SSH terminal in one dedicated desktop window. This
 window uses Linux-terminal clipboard shortcuts: `Ctrl+Shift+C` and
 `Ctrl+Shift+V`. It also provides progressive hints, validation,
 and a persistent practice report. Progress is stored locally outside the VMs,

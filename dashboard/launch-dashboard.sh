@@ -31,8 +31,7 @@ for _ in {1..20}; do
   sleep 0.25
 done
 
-# A WebKit window keeps the task and terminal in the same dashboard while
-# allowing Ctrl+Shift+C / Ctrl+Shift+V to behave like a Linux terminal.
+# A native VTE window keeps the task and a real Linux terminal together.
 if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
   /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL" >/tmp/cka-local-practice-ui.log 2>&1 &
 else
