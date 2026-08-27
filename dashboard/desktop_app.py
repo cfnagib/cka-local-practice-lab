@@ -114,7 +114,7 @@ class CkaPracticeApp:
         terminal_scroll = Gtk.ScrolledWindow()
         self.terminal = Vte.Terminal()
         self.terminal.set_scrollback_lines(10000)
-        self.terminal.set_font(Pango.FontDescription("Monospace 16"))
+        self.terminal.set_font(Pango.FontDescription("Monospace 14"))
         self.terminal.connect("key-press-event", self.terminal_key_press)
         terminal_scroll.add(self.terminal)
         split.pack2(terminal_scroll, resize=True, shrink=False)
