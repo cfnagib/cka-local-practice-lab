@@ -150,6 +150,18 @@ class CkaPracticeApp:
         if control and shift and key in {"v", "V"}:
             self.terminal.paste_clipboard()
             return True
+        if shift and key in {"Left", "Right", "Up", "Down"}:
+            # Bash/readline does not provide graphical Shift+Arrow selection.
+            # Some terminal stacks leak the final A/B/C/D byte of the modified
+            # escape sequence. Send the corresponding normal arrow instead.
+            arrows = {
+                "Left": b"\x1b[D",
+                "Right": b"\x1b[C",
+                "Up": b"\x1b[A",
+                "Down": b"\x1b[B",
+            }
+            self.terminal.feed_child(arrows[key])
+            return True
         return False
 
     def update_timer(self):
