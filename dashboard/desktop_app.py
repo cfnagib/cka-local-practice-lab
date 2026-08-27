@@ -5,6 +5,7 @@ import sys
 
 import gi
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("WebKit2", "4.1")
 from gi.repository import Gdk, Gtk, WebKit2
 
@@ -50,4 +51,5 @@ class CkaPracticeApp(Gtk.Application):
 
 
 if __name__ == "__main__":
-    CkaPracticeApp(sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8790").run(sys.argv)
+    url = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8790"
+    CkaPracticeApp(url).run([sys.argv[0]])
