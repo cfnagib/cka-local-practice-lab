@@ -106,6 +106,57 @@ def question_hint(n, level):
     selection = lines[start:start + chunk]
     return "\n".join(selection) if selection else "No further hints are available."
 
+def remote_check(script):
+    try:
+        result = subprocess.run([
+            "ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null", f"{SSH_USER}@{CONTROL_IP}",
+            f"bash -lc {shlex.quote(script)}",
+        ], text=True, capture_output=True, timeout=20)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+def guided_hint_state(n):
+    if n != 1:
+        return {
+            "available": False,
+            "message": "Guided step checks are currently available for Question 1 only. Use the task wording and command help for this question.",
+        }
+    repo_added = remote_check(
+        "helm repo list | awk '$1 == \"argocd\" && $2 == \"https://argoproj.github.io/argo-helm\" { found=1 } END { exit !found }'"
+    )
+    manifest_exists = remote_check("sudo test -s /root/argo-helm.yaml")
+    crds_excluded = remote_check(
+        "sudo test -s /root/argo-helm.yaml && ! sudo grep -q '^kind: CustomResourceDefinition$' /root/argo-helm.yaml"
+    )
+    final_valid = run_validation(1).returncode == 0 if crds_excluded else False
+    return {
+        "available": True,
+        "steps": [
+            {
+                "title": "Add the chart repository",
+                "text": "Read item 1 literally: identify the repository name and URL from the task. Add that repository, then confirm it appears in the Helm repository list.",
+                "complete": repo_added,
+            },
+            {
+                "title": "Render the chart without installing it",
+                "text": "Item 2 asks for rendered YAML, not a deployed release. Use the Helm command that renders a template. Look up its version and namespace flags in command help.",
+                "complete": manifest_exists,
+            },
+            {
+                "title": "Exclude CRDs",
+                "text": "Item 3 is a chart value, not a Kubernetes flag. Inspect the chart values for the CRD installation setting, then render again with that setting disabled.",
+                "complete": crds_excluded,
+            },
+            {
+                "title": "Verify the final deliverable",
+                "text": "Item 4 requires the rendered manifest at the exact absolute path. Confirm the file exists, then use Validate to check the whole task.",
+                "complete": final_valid,
+            },
+        ],
+    }
+
 def run_validation(n):
     remote = f"bash /tmp/cka-question-{n}/validate.sh"
     return subprocess.run([
@@ -205,6 +256,10 @@ class Handler(SimpleHTTPRequestHandler):
             parts = self.path.strip("/").split("/")
             if len(parts) == 4 and valid_question(parts[2]) and parts[3].isdigit():
                 return self.respond_json({"hint": question_hint(int(parts[2]), max(1, int(parts[3])) )})
+        if self.path.startswith("/api/guided-hint/"):
+            n = self.path.rsplit("/", 1)[-1]
+            if valid_question(n):
+                return self.respond_json(guided_hint_state(int(n)))
         return super().do_GET()
     def log_message(self, *_): pass
 

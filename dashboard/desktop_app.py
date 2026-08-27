@@ -110,6 +110,17 @@ class CkaPracticeApp:
         self.task.set_selectable(True)
         self.task.set_name("task-text")
         left.pack_start(self.task, False, False, 0)
+        self.hint_frame = Gtk.Frame(label=" Guided hint ")
+        self.hint_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin=10)
+        self.hint_frame.add(self.hint_box)
+        self.hint_title = Gtk.Label(xalign=0)
+        self.hint_title.set_use_markup(True)
+        self.hint_text = Gtk.Label(xalign=0)
+        self.hint_text.set_line_wrap(True)
+        self.hint_box.pack_start(self.hint_title, False, False, 0)
+        self.hint_box.pack_start(self.hint_text, False, False, 0)
+        left.pack_start(self.hint_frame, False, False, 0)
+        self.hint_frame.hide()
 
         terminal_scroll = Gtk.ScrolledWindow()
         self.terminal = Vte.Terminal()
@@ -205,6 +216,7 @@ class CkaPracticeApp:
             self.question = selected + 1
             self.started = False
             self.start_button.set_label("Start Task")
+            self.hint_frame.hide()
             self.load_question()
 
     def change_question(self, delta):
@@ -215,6 +227,7 @@ class CkaPracticeApp:
         if self.preparing:
             return
         self.preparing = True
+        self.hint_frame.hide()
         self.set_preparing_controls(True)
         self.status.set_text("Preparing environment. The task button is locked while the VMs reset; this usually takes 30–90 seconds.")
         self.terminal.reset(True, True)
@@ -291,10 +304,27 @@ class CkaPracticeApp:
         if not self.started:
             return
         try:
-            data = self.request(f"/api/hint/{self.question}/1")
-            self.terminal.feed(("\r\nHint:\r\n" + data.get("hint", "") + "\r\n").encode())
-        except Exception:
-            pass
+            data = self.request(f"/api/guided-hint/{self.question}")
+            if not data.get("available"):
+                self.hint_title.set_markup("<b>Guided hint</b>")
+                self.hint_text.set_text(data.get("message", "No guided hint is available."))
+            else:
+                steps = data["steps"]
+                index = next((i for i, step in enumerate(steps) if not step["complete"]), len(steps))
+                if index == len(steps):
+                    self.hint_title.set_markup("<b>All guided steps are complete</b>")
+                    self.hint_text.set_text("Use Validate to record the completed task.")
+                else:
+                    step = steps[index]
+                    self.hint_title.set_markup(
+                        f"<b>Step {index + 1} of {len(steps)} · {GLib.markup_escape_text(step['title'])}</b>"
+                    )
+                    self.hint_text.set_text(step["text"] + "\n\nComplete this outcome, then press Hint again for the next step.")
+            self.hint_frame.show_all()
+        except Exception as error:
+            self.hint_title.set_markup("<b>Guided hint unavailable</b>")
+            self.hint_text.set_text(str(error))
+            self.hint_frame.show_all()
 
     def review(self, *_):
         try:
