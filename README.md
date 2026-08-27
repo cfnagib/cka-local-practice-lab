@@ -29,10 +29,10 @@ sg libvirt -c './scripts/snapshot-baseline.sh'
 For the dashboard launcher, run `./dashboard/install-launcher.sh` once and then
 open **CKA Local Practice** from the application menu.
 
-The dashboard restores the baseline, prepares the selected question, and opens
-the same task panel and a native Linux SSH terminal in one dedicated desktop window. This
-window uses Linux-terminal clipboard shortcuts: `Ctrl+Shift+C` and
-`Ctrl+Shift+V`. It also provides progressive hints, validation,
+The dashboard restores the baseline and prepares the selected question. The
+desktop launcher opens KDE Konsole, a native Linux SSH terminal, which uses
+the Linux-terminal clipboard shortcuts: `Ctrl+Shift+C` and `Ctrl+Shift+V`.
+The dashboard provides progressive hints, validation,
 and a persistent practice report. Progress is stored locally outside the VMs,
 so resetting a question never erases solved status, attempts, or recorded time.
 
