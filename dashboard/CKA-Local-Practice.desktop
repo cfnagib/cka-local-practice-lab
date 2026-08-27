@@ -8,4 +8,4 @@ Terminal=false
 Categories=Education;Development;
 Icon=utilities-terminal
 StartupWMClass=CKAPracticeLab
-StartupNotify=true
+StartupNotify=false

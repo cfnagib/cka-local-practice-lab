@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 URL="http://127.0.0.1:8790"
 LOG_FILE="/tmp/cka-local-dashboard.log"
 UNIT="cka-local-dashboard"
+UI_UNIT="cka-local-practice-ui"
 TAILSCALE_IP=""
 
 if command -v tailscale >/dev/null 2>&1; then
@@ -34,7 +35,18 @@ done
 # The desktop app keeps the task panel and a native VTE Linux terminal together
 # in one KDE window. It is not a browser terminal.
 if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
-  exec /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL"
+  systemctl --user stop "$UI_UNIT.service" 2>/dev/null || true
+  systemctl --user reset-failed "$UI_UNIT.service" 2>/dev/null || true
+  UI_ENV=("--setenv=DISPLAY=${DISPLAY:-}")
+  if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
+    UI_ENV+=("--setenv=WAYLAND_DISPLAY=$WAYLAND_DISPLAY")
+  fi
+  if [[ -n "${XAUTHORITY:-}" ]]; then
+    UI_ENV+=("--setenv=XAUTHORITY=$XAUTHORITY")
+  fi
+  systemd-run --user --unit="$UI_UNIT" --collect "${UI_ENV[@]}" \
+    --property="WorkingDirectory=$ROOT_DIR" \
+    /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL" >/dev/null
 else
   xdg-open "$URL" >/dev/null 2>&1 &
 fi

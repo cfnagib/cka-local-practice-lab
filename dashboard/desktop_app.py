@@ -9,6 +9,7 @@ import urllib.request
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("Vte", "2.91")
 from gi.repository import Gdk, Gio, GLib, Gtk, Pango, Vte
 
@@ -44,10 +45,9 @@ class CkaPracticeApp:
             return json.loads(response.read())
 
     def build_window(self):
+        GLib.set_prgname("cka-practice-lab")
+        Gdk.set_program_class("CKAPracticeLab")
         self.window = Gtk.Window(title="CKA Practice Lab")
-        # Keep this class identical to StartupWMClass in the desktop entry so
-        # KDE Task Manager pins and relaunches this application, not python3.
-        self.window.set_wmclass("cka-practice-lab", "CKAPracticeLab")
         self.window.connect("destroy", Gtk.main_quit)
         self.window.set_default_size(1500, 950)
         self.window.maximize()
