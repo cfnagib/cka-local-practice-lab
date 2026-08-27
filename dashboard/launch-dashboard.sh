@@ -33,7 +33,9 @@ done
 
 # A native VTE window keeps the task and a real Linux terminal together.
 if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
-  /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL" >/tmp/cka-local-practice-ui.log 2>&1 &
+  # Keep the desktop-launcher process attached to the GTK window. KDE may
+  # otherwise treat a background child as finished and close its new window.
+  exec /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL"
 else
   xdg-open "$URL" >/dev/null 2>&1 &
 fi
