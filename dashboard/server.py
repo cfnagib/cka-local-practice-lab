@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import asyncio, json, os, pathlib, pty, re, shlex, shutil, subprocess, threading, time
+import asyncio, json, os, pathlib, pty, re, shlex, subprocess, threading, time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 import websockets
@@ -31,30 +31,6 @@ def lab_config(key, fallback):
 SSH_USER = lab_config("SSH_USER", os.environ.get("USER", "cfnagib"))
 BASE_IP = lab_config("BASE_IP", "192.168.122.40")
 CONTROL_IP = lab_config("CONTROL_IP", "192.168.122.63")
-
-def launch_native_exam_terminal():
-    """Open a real Linux terminal for local sessions.
-
-    Chromium reserves Ctrl+Shift+C for Inspect Element, so its embedded terminal
-    cannot faithfully train the CKA terminal clipboard shortcuts. Konsole can.
-    """
-    konsole = shutil.which("konsole")
-    display = os.environ.get("DISPLAY")
-    if not konsole or not display:
-        return False
-    env = os.environ.copy()
-    env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
-    command = [
-        konsole, "--title", "CKA Exam Terminal", "-e",
-        "ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no",
-        "-o", "UserKnownHostsFile=/dev/null", f"{SSH_USER}@{BASE_IP}", "bash -i",
-    ]
-    try:
-        subprocess.Popen(command, env=env, start_new_session=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
-    except OSError:
-        return False
 
 def run_lab_script(name, *args):
     command = shlex.join([str(LAB / "scripts" / name), *args])
@@ -183,10 +159,7 @@ class Handler(SimpleHTTPRequestHandler):
                     result = run_lab_script("run-question.sh", n)
                 if result.returncode == 0:
                     begin_attempt(int(n))
-                is_local_dashboard = self.client_address[0] in {"127.0.0.1", "::1"}
-                native_terminal = result.returncode == 0 and is_local_dashboard and launch_native_exam_terminal()
-                response = {"ok": result.returncode == 0, "output": result.stdout + result.stderr,
-                            "native_terminal": native_terminal}
+                response = {"ok": result.returncode == 0, "output": result.stdout + result.stderr}
             finally:
                 START_LOCK.release()
             return self.respond_json(response)

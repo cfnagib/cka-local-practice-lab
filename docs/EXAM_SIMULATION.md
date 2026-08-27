@@ -3,16 +3,15 @@
 The dashboard combines an exam-style workflow with explicit training tools.
 It mirrors the practical CKA workflow:
 
-- A task panel is shown beside the terminal area. On the local Ubuntu host,
-  starting a task opens a native Konsole terminal; this is the preferred
-  exam-like terminal. Remote Tailscale sessions retain the embedded fallback.
+- A task panel and a remote terminal are shown side by side in one dedicated
+  desktop window.
 - The timer counts down from two hours.
 - The terminal begins on `cka-base`, not on a Kubernetes node.
 - Each task identifies its target host. Use `ssh controlplane`, `ssh worker1`,
   or `ssh worker2` from `cka-base` before working.
-- In the native Konsole terminal, copy and paste use `Ctrl+Shift+C` and
-  `Ctrl+Shift+V`, matching the CKA terminal. Chrome reserves `Ctrl+Shift+C`
-  for Inspect Element, so it cannot faithfully provide that shortcut.
+- Terminal copy and paste use `Ctrl+Shift+C` and `Ctrl+Shift+V`, matching the
+  real CKA terminal. The local dashboard uses a dedicated WebKit desktop window
+  so Chrome's Inspect Element shortcut cannot intercept those keys.
 
 The same screen also exposes explicit learning tools: video links, progressive
 hints, per-question validation, saved attempts, solved status, best time, and

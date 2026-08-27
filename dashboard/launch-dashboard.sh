@@ -18,11 +18,6 @@ fi
 systemctl --user stop "$UNIT.service" 2>/dev/null || true
 systemctl --user reset-failed "$UNIT.service" 2>/dev/null || true
 RUN_ENV=()
-for variable in DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do
-  if [[ -n "${!variable:-}" ]]; then
-    RUN_ENV+=("--setenv=$variable=${!variable}")
-  fi
-done
 if [[ -n "$TAILSCALE_IP" ]]; then
   RUN_ENV+=("--setenv=CKA_TAILSCALE_IP=$TAILSCALE_IP")
 fi
@@ -36,7 +31,13 @@ for _ in {1..20}; do
   sleep 0.25
 done
 
-xdg-open "$URL" >/dev/null 2>&1 &
+# A WebKit window keeps the task and terminal in the same dashboard while
+# allowing Ctrl+Shift+C / Ctrl+Shift+V to behave like a Linux terminal.
+if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+  /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL" >/tmp/cka-local-practice-ui.log 2>&1 &
+else
+  xdg-open "$URL" >/dev/null 2>&1 &
+fi
 if [[ -n "$TAILSCALE_IP" ]]; then
   echo "Tailscale access: http://$TAILSCALE_IP:8790"
 fi
