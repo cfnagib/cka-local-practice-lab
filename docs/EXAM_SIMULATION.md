@@ -1,25 +1,19 @@
 # Exam simulation
 
-The dashboard has two intentionally separate modes.
-
-## Exam Simulation
-
-This is the default mode. It mirrors the practical CKA workflow:
+The dashboard combines an exam-style workflow with explicit training tools.
+It mirrors the practical CKA workflow:
 
 - A task panel and a remote terminal are shown side by side.
 - The timer counts down from two hours.
 - The terminal begins on `cka-base`, not on a Kubernetes node.
 - Each task identifies its target host. Use `ssh controlplane`, `ssh worker1`,
   or `ssh worker2` from `cka-base` before working.
-- Video links, hints, validation, and the training report are hidden.
 - Terminal copy and paste use `Ctrl+Shift+C` and `Ctrl+Shift+V`.
 
-## Practice Mode
-
-Practice Mode keeps the same lab but exposes the learning tools: progressive
-hints, per-question validation, saved attempts, solved status, and best time.
-Those records live in the host user's local state directory, outside the VM
-snapshots, so a lab reset never erases them.
+The same screen also exposes explicit learning tools: video links, progressive
+hints, per-question validation, saved attempts, solved status, best time, and
+a practice report. Those records live in the host user's local state directory,
+outside the VM snapshots, so a lab reset never erases them.
 
 ## Deliberate limits
 

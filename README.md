@@ -34,9 +34,9 @@ SSH terminal on the base host, and provides progressive hints, validation,
 and a persistent practice report. Progress is stored locally outside the VMs,
 so resetting a question never erases solved status, attempts, or recorded time.
 
-See [EXAM_SIMULATION.md](docs/EXAM_SIMULATION.md) for the Exam Simulation and
-Practice Mode workflows. Exam Simulation starts on `cka-base`; use SSH aliases
-to enter the task host, matching the official CKA workflow.
+See [EXAM_SIMULATION.md](docs/EXAM_SIMULATION.md) for the exam-style workflow.
+The dashboard starts on `cka-base`; use SSH aliases to enter the task host,
+matching the official CKA workflow while retaining training tools.
 
 ## Tailscale access
 
