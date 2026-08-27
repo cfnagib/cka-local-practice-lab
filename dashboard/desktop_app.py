@@ -25,30 +25,25 @@ def lab_value(name, fallback):
     return value or fallback
 
 
-class CkaPracticeApp(Gtk.Application):
+class CkaPracticeApp:
     def __init__(self, base_url):
-        # Do not register a single-instance DBus application. KDE can retain a
-        # stale activation target after a window is closed, causing a later
-        # taskbar click to exit without showing a window.
-        super().__init__()
         self.base_url = base_url.rstrip("/")
         self.question = 1
         self.started = False
         self.preparing = False
         self.ssh_user = lab_value("SSH_USER", "cfnagib")
         self.base_ip = lab_value("BASE_IP", "192.168.122.40")
+        self.build_window()
 
     def request(self, path, method="GET"):
         request = urllib.request.Request(self.base_url + path, method=method)
         with urllib.request.urlopen(request, timeout=180) as response:
             return json.loads(response.read())
 
-    def do_activate(self):
-        if self.props.active_window:
-            self.props.active_window.present()
-            return
-        self.window = Gtk.ApplicationWindow(application=self, title="CKA Practice Lab")
+    def build_window(self):
+        self.window = Gtk.Window(title="CKA Practice Lab")
         self.window.set_wmclass("cka-practice-lab", "CKA Practice Lab")
+        self.window.connect("destroy", Gtk.main_quit)
         self.window.set_default_size(1500, 950)
         self.window.maximize()
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -112,7 +107,11 @@ class CkaPracticeApp(Gtk.Application):
         terminal_scroll.add(self.terminal)
         split.pack2(terminal_scroll, resize=True, shrink=False)
         self.load_question()
+
+    def run(self):
         self.window.show_all()
+        self.window.present()
+        Gtk.main()
 
     def load_question(self):
         try:
@@ -227,4 +226,4 @@ class CkaPracticeApp(Gtk.Application):
 
 
 if __name__ == "__main__":
-    CkaPracticeApp("http://127.0.0.1:8790").run([])
+    CkaPracticeApp("http://127.0.0.1:8790").run()

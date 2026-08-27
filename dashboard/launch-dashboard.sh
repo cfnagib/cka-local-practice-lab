@@ -31,14 +31,10 @@ for _ in {1..20}; do
   sleep 0.25
 done
 
-# Use KDE's real Konsole terminal. It is a normal desktop window, so it can be
-# pinned to the taskbar and receives the terminal clipboard shortcuts directly.
+# The desktop app keeps the task panel and a native VTE Linux terminal together
+# in one KDE window. It is not a browser terminal.
 if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
-  # The browser is the task sheet and training-control surface; Konsole is the
-  # real terminal used to solve the task. They are intentionally separate:
-  # a browser cannot embed a real Konsole terminal.
-  xdg-open "$URL" >/dev/null 2>&1 &
-  exec "$ROOT_DIR/dashboard/open-native-terminal.sh"
+  exec /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL"
 else
   xdg-open "$URL" >/dev/null 2>&1 &
 fi
