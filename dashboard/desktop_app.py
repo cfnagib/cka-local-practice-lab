@@ -303,28 +303,39 @@ class CkaPracticeApp:
     def hint(self, *_):
         if not self.started:
             return
+        self.hint_frame.show_all()
+        self.hint_title.set_markup("<b>Checking the next step</b>")
+        self.hint_text.set_text("Reading the live task state…")
+        threading.Thread(target=self.hint_worker, daemon=True).start()
+
+    def hint_worker(self):
         try:
             data = self.request(f"/api/guided-hint/{self.question}")
-            if not data.get("available"):
-                self.hint_title.set_markup("<b>Guided hint</b>")
-                self.hint_text.set_text(data.get("message", "No guided hint is available."))
-            else:
-                steps = data["steps"]
-                index = next((i for i, step in enumerate(steps) if not step["complete"]), len(steps))
-                if index == len(steps):
-                    self.hint_title.set_markup("<b>All guided steps are complete</b>")
-                    self.hint_text.set_text("Use Validate to record the completed task.")
-                else:
-                    step = steps[index]
-                    self.hint_title.set_markup(
-                        f"<b>Step {index + 1} of {len(steps)} · {GLib.markup_escape_text(step['title'])}</b>"
-                    )
-                    self.hint_text.set_text(step["text"] + "\n\nComplete this outcome, then press Hint again for the next step.")
-            self.hint_frame.show_all()
         except Exception as error:
+            data = {"error": str(error)}
+        GLib.idle_add(self.show_hint, data)
+
+    def show_hint(self, data):
+        if data.get("error"):
             self.hint_title.set_markup("<b>Guided hint unavailable</b>")
-            self.hint_text.set_text(str(error))
-            self.hint_frame.show_all()
+            self.hint_text.set_text(data["error"])
+        elif not data.get("available"):
+            self.hint_title.set_markup("<b>Guided hint</b>")
+            self.hint_text.set_text(data.get("message", "No guided hint is available."))
+        else:
+            steps = data["steps"]
+            index = next((i for i, step in enumerate(steps) if not step["complete"]), len(steps))
+            if index == len(steps):
+                self.hint_title.set_markup("<b>All guided steps are complete</b>")
+                self.hint_text.set_text("Use Validate to record the completed task.")
+            else:
+                step = steps[index]
+                self.hint_title.set_markup(
+                    f"<b>Step {index + 1} of {len(steps)} · {GLib.markup_escape_text(step['title'])}</b>"
+                )
+                self.hint_text.set_text(step["text"] + "\n\nComplete this outcome, then press Hint again for the next step.")
+        self.hint_frame.show_all()
+        return False
 
     def review(self, *_):
         try:
