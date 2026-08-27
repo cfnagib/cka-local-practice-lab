@@ -143,9 +143,9 @@ class CkaPracticeApp:
             return
         self.preparing = True
         self.start_button.set_sensitive(False)
-        self.status.set_text("Preparing environment — keyboard is locked. This usually takes 30–90 seconds.")
+        self.status.set_text("Preparing environment. The task button is locked while the VMs reset; this usually takes 30–90 seconds.")
         self.terminal.reset(True, True)
-        self.terminal.feed("Preparing task environment…\r\n")
+        self.terminal.feed(b"Preparing task environment...\r\nPlease wait while the lab is reset.\r\n")
         threading.Thread(target=self.prepare_worker, daemon=True).start()
 
     def prepare_worker(self):
@@ -160,16 +160,27 @@ class CkaPracticeApp:
         self.start_button.set_sensitive(True)
         if not result.get("ok"):
             self.status.set_text("Preparation failed. Try again.")
-            self.terminal.feed((result.get("output") or "Unknown error") + "\r\n")
+            self.terminal.feed(((result.get("output") or "Unknown error") + "\r\n").encode())
             return False
+        try:
+            self.status.set_text("Environment is ready. Opening the terminal session...")
+            argv = ["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f"{self.ssh_user}@{self.base_ip}", "bash -i"]
+            self.terminal.spawn_async(Vte.PtyFlags.DEFAULT, str(pathlib.Path.home()), argv, None,
+                                      GLib.SpawnFlags.DEFAULT, None, -1, None, self.terminal_started, None)
+        except Exception as error:
+            self.status.set_text(f"Environment is ready, but the terminal could not start: {error}")
+            self.terminal.feed((f"Terminal startup error: {error}\r\n").encode())
+        return False
+
+    def terminal_started(self, _terminal, _pid, error, _data):
+        if error:
+            self.status.set_text(f"Environment is ready, but the terminal could not start: {error}")
+            self.terminal.feed((f"Terminal startup error: {error}\r\n").encode())
+            return
         self.started = True
         self.start_button.set_label("Reset Task")
         self.status.set_text("Connected to base. Read the task, then ssh to the designated host. Use Validate after you finish.")
-        argv = ["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f"{self.ssh_user}@{self.base_ip}", "bash -i"]
-        self.terminal.spawn_async(Vte.PtyFlags.DEFAULT, str(pathlib.Path.home()), argv, None,
-                                  GLib.SpawnFlags.DEFAULT, None, -1, None, None, None)
         self.terminal.grab_focus()
-        return False
 
     def validate(self, *_):
         if self.started:
@@ -184,7 +195,7 @@ class CkaPracticeApp:
 
     def show_validation(self, result):
         output = result.get("output", "")
-        self.terminal.feed("\r\n" + output.replace("\n", "\r\n") + "\r\n")
+        self.terminal.feed(("\r\n" + output.replace("\n", "\r\n") + "\r\n").encode())
         self.status.set_text("Passed — this question is recorded as solved." if result.get("ok") else "Not passed yet. Review the validator output in the terminal.")
         return False
 
@@ -193,7 +204,7 @@ class CkaPracticeApp:
             return
         try:
             data = self.request(f"/api/hint/{self.question}/1")
-            self.terminal.feed("\r\nHint:\r\n" + data.get("hint", "") + "\r\n")
+            self.terminal.feed(("\r\nHint:\r\n" + data.get("hint", "") + "\r\n").encode())
         except Exception:
             pass
 
