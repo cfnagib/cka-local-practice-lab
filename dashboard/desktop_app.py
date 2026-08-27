@@ -27,7 +27,10 @@ def lab_value(name, fallback):
 
 class CkaPracticeApp(Gtk.Application):
     def __init__(self, base_url):
-        super().__init__(application_id="org.cfnagib.CkaLocalPractice")
+        # Do not register a single-instance DBus application. KDE can retain a
+        # stale activation target after a window is closed, causing a later
+        # taskbar click to exit without showing a window.
+        super().__init__()
         self.base_url = base_url.rstrip("/")
         self.question = 1
         self.started = False
@@ -45,6 +48,7 @@ class CkaPracticeApp(Gtk.Application):
             self.props.active_window.present()
             return
         self.window = Gtk.ApplicationWindow(application=self, title="CKA Practice Lab")
+        self.window.set_wmclass("cka-practice-lab", "CKA Practice Lab")
         self.window.set_default_size(1500, 950)
         self.window.maximize()
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
