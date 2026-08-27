@@ -34,6 +34,10 @@ done
 # Use KDE's real Konsole terminal. It is a normal desktop window, so it can be
 # pinned to the taskbar and receives the terminal clipboard shortcuts directly.
 if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+  # The browser is the task sheet and training-control surface; Konsole is the
+  # real terminal used to solve the task. They are intentionally separate:
+  # a browser cannot embed a real Konsole terminal.
+  xdg-open "$URL" >/dev/null 2>&1 &
   exec "$ROOT_DIR/dashboard/open-native-terminal.sh"
 else
   xdg-open "$URL" >/dev/null 2>&1 &
