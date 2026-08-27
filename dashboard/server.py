@@ -56,15 +56,26 @@ def save_progress(progress):
 def begin_attempt(n):
     progress = load_progress()
     key = str(n)
-    record = progress["questions"].setdefault(key, {"attempts": 0, "solved": False})
+    record = progress["questions"].setdefault(key, {"attempts": 0, "solved": False, "events": []})
     record["attempts"] += 1
     progress["active"] = {"question": n, "started_at": int(time.time())}
     save_progress(progress)
 
-def finish_validation(n, passed):
+def record_command(n, command):
+    command = command.strip()
+    if not command or len(command) > 4000:
+        return
+    progress = load_progress()
+    record = progress["questions"].setdefault(str(n), {"attempts": 0, "solved": False, "events": []})
+    events = record.setdefault("events", [])
+    events.append({"type": "command", "at": int(time.time()), "command": command})
+    record["events"] = events[-500:]
+    save_progress(progress)
+
+def finish_validation(n, passed, output):
     progress = load_progress()
     key = str(n)
-    record = progress["questions"].setdefault(key, {"attempts": 0, "solved": False})
+    record = progress["questions"].setdefault(key, {"attempts": 0, "solved": False, "events": []})
     active = progress.get("active", {})
     elapsed = max(0, int(time.time()) - int(active.get("started_at", time.time()))) if active.get("question") == n else None
     record["last_validation_passed"] = passed
@@ -76,6 +87,9 @@ def finish_validation(n, passed):
         if elapsed is not None:
             best = record.get("best_time_seconds")
             record["best_time_seconds"] = elapsed if best is None else min(best, elapsed)
+    events = record.setdefault("events", [])
+    events.append({"type": "validation", "at": int(time.time()), "passed": passed, "output": output[-12000:]})
+    record["events"] = events[-500:]
     save_progress(progress)
     return progress
 
@@ -159,10 +173,21 @@ class Handler(SimpleHTTPRequestHandler):
                 if result.returncode == 255 and "ssh:" in output:
                     return self.respond_json({"ok": False, "environment_error": True, "output": "The practice VM is unavailable. Reset the question and try again."})
                 passed = result.returncode == 0
-                progress = finish_validation(int(n), passed)
+                progress = finish_validation(int(n), passed, output)
                 return self.respond_json({"ok": passed, "output": output, "progress": progress})
             except subprocess.TimeoutExpired:
                 return self.respond_json({"ok": False, "output": "Validation timed out. Reset the question and try again."})
+        if self.path.startswith("/api/activity/"):
+            n = self.path.rsplit("/", 1)[-1]
+            if not valid_question(n):
+                return self.respond_json({"ok": False, "output": "Question not found."}, 404)
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                record_command(int(n), str(payload.get("command", "")))
+                return self.respond_json({"ok": True})
+            except (ValueError, json.JSONDecodeError):
+                return self.respond_json({"ok": False, "output": "Invalid activity data."}, 400)
         self.send_error(404)
     def do_GET(self):
         if self.path.startswith("/api/question/"):
@@ -172,6 +197,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.respond_json(data)
         if self.path == "/api/progress":
             return self.respond_json(load_progress())
+        if self.path.startswith("/api/review/"):
+            n = self.path.rsplit("/", 1)[-1]
+            if valid_question(n):
+                return self.respond_json(load_progress().get("questions", {}).get(n, {"attempts": 0, "solved": False, "events": []}))
         if self.path.startswith("/api/hint/"):
             parts = self.path.strip("/").split("/")
             if len(parts) == 4 and valid_question(parts[2]) and parts[3].isdigit():
