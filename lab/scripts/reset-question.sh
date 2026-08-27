@@ -10,7 +10,7 @@ network_is_active() {
   [[ "$network_info" =~ Active:[[:space:]]+yes ]]
 }
 
-for name in cka-controlplane cka-worker1 cka-worker2; do
+for name in cka-base cka-controlplane cka-worker1 cka-worker2; do
   virsh -c qemu:///system destroy "$name" 2>/dev/null || true
 done
 
@@ -33,7 +33,7 @@ done
   echo "Libvirt network $NETWORK did not become active"
   exit 1
 }
-for name in cka-controlplane cka-worker1 cka-worker2; do
+for name in cka-base cka-controlplane cka-worker1 cka-worker2; do
   virsh -c qemu:///system snapshot-revert "$name" "$SNAPSHOT"
   # The baseline is powered off, so always perform a clean cold boot.
   virsh -c qemu:///system destroy "$name" 2>/dev/null || true

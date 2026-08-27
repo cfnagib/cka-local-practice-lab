@@ -30,9 +30,13 @@ For the dashboard launcher, run `./dashboard/install-launcher.sh` once and then
 open **CKA Local Practice** from the application menu.
 
 The dashboard restores the baseline, prepares the selected question, opens an
-SSH terminal on the control-plane, and provides progressive hints, validation,
+SSH terminal on the base host, and provides progressive hints, validation,
 and a persistent practice report. Progress is stored locally outside the VMs,
 so resetting a question never erases solved status, attempts, or recorded time.
+
+See [EXAM_SIMULATION.md](docs/EXAM_SIMULATION.md) for the Exam Simulation and
+Practice Mode workflows. Exam Simulation starts on `cka-base`; use SSH aliases
+to enter the task host, matching the official CKA workflow.
 
 ## Tailscale access
 

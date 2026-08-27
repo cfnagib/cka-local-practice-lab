@@ -29,6 +29,7 @@ def lab_config(key, fallback):
     return result.stdout or fallback
 
 SSH_USER = lab_config("SSH_USER", os.environ.get("USER", "cfnagib"))
+BASE_IP = lab_config("BASE_IP", "192.168.122.40")
 CONTROL_IP = lab_config("CONTROL_IP", "192.168.122.63")
 
 def run_lab_script(name, *args):
@@ -116,7 +117,7 @@ def parse_question(n):
             video_url = line
         else:
             body.append(line)
-    return {"number": n, "title": title, "text": "\n".join(body).strip(), "video_url": video_url}
+    return {"number": n, "title": title, "text": "\n".join(body).strip(), "video_url": video_url, "target_host": "controlplane"}
 
 def question_file(n):
     d = QUESTION_ROOT / f"Question-{n}"
@@ -180,7 +181,7 @@ class Handler(SimpleHTTPRequestHandler):
 
 async def terminal(ws):
     master, slave = pty.openpty()
-    proc = subprocess.Popen(["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f"{SSH_USER}@{CONTROL_IP}", "bash -i"], stdin=slave, stdout=slave, stderr=slave, env={**os.environ, "TERM": "xterm-256color", "QT_QPA_PLATFORM": "offscreen"})
+    proc = subprocess.Popen(["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f"{SSH_USER}@{BASE_IP}", "bash -i"], stdin=slave, stdout=slave, stderr=slave, env={**os.environ, "TERM": "xterm-256color", "QT_QPA_PLATFORM": "offscreen"})
     os.close(slave)
     loop = asyncio.get_running_loop()
     async def reader():
