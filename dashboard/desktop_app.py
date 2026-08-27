@@ -42,7 +42,9 @@ class CkaPracticeApp:
 
     def build_window(self):
         self.window = Gtk.Window(title="CKA Practice Lab")
-        self.window.set_wmclass("cka-practice-lab", "CKA Practice Lab")
+        # Keep this class identical to StartupWMClass in the desktop entry so
+        # KDE Task Manager pins and relaunches this application, not python3.
+        self.window.set_wmclass("cka-practice-lab", "CKAPracticeLab")
         self.window.connect("destroy", Gtk.main_quit)
         self.window.set_default_size(1500, 950)
         self.window.maximize()
