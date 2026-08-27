@@ -18,6 +18,11 @@ fi
 systemctl --user stop "$UNIT.service" 2>/dev/null || true
 systemctl --user reset-failed "$UNIT.service" 2>/dev/null || true
 RUN_ENV=()
+for variable in DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do
+  if [[ -n "${!variable:-}" ]]; then
+    RUN_ENV+=("--setenv=$variable=${!variable}")
+  fi
+done
 if [[ -n "$TAILSCALE_IP" ]]; then
   RUN_ENV+=("--setenv=CKA_TAILSCALE_IP=$TAILSCALE_IP")
 fi

@@ -29,8 +29,10 @@ sg libvirt -c './scripts/snapshot-baseline.sh'
 For the dashboard launcher, run `./dashboard/install-launcher.sh` once and then
 open **CKA Local Practice** from the application menu.
 
-The dashboard restores the baseline, prepares the selected question, opens an
-SSH terminal on the base host, and provides progressive hints, validation,
+The dashboard restores the baseline, prepares the selected question, and opens
+a native Konsole SSH terminal on the base host for local sessions. This gives
+you the real Linux terminal clipboard shortcuts (`Ctrl+Shift+C` and
+`Ctrl+Shift+V`). It also provides progressive hints, validation,
 and a persistent practice report. Progress is stored locally outside the VMs,
 so resetting a question never erases solved status, attempts, or recorded time.
 
@@ -42,8 +44,9 @@ matching the official CKA workflow while retaining training tools.
 
 When Tailscale is installed and connected, launching **CKA Local Practice** also
 binds the dashboard to this host's Tailscale IPv4 address. From a Tailscale
-connected Mac, open `http://TAILSCALE-IP:8790` in a browser. The terminal uses
-the same encrypted Tailscale connection. The dashboard is not exposed on the
+connected Mac, open `http://TAILSCALE-IP:8790` in a browser. Remote sessions
+continue to use the embedded terminal, while local Ubuntu sessions open the
+native Konsole terminal. The dashboard is not exposed on the
 public internet or on the ordinary LAN.
 
 ## Training method
