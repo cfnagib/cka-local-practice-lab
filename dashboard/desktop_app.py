@@ -4,12 +4,13 @@ import json
 import pathlib
 import subprocess
 import threading
+import time
 import urllib.request
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Vte", "2.91")
-from gi.repository import GLib, Gtk, Vte
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango, Vte
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -31,6 +32,8 @@ class CkaPracticeApp:
         self.question = 1
         self.started = False
         self.preparing = False
+        self.started_at = None
+        self.spawn_cancellable = None
         self.ssh_user = lab_value("SSH_USER", "cfnagib")
         self.base_ip = lab_value("BASE_IP", "192.168.122.40")
         self.build_window()
@@ -48,6 +51,7 @@ class CkaPracticeApp:
         self.window.connect("destroy", Gtk.main_quit)
         self.window.set_default_size(1500, 950)
         self.window.maximize()
+        self.install_styles()
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.window.add(outer)
 
@@ -73,15 +77,17 @@ class CkaPracticeApp:
         self.start_button = Gtk.Button.new_with_label("Start Task")
         self.start_button.connect("clicked", self.start_task)
         tools.pack_start(self.start_button, False, False, 0)
+        self.tool_buttons = [self.start_button]
         for label, callback in [("Validate", self.validate), ("Hint", self.hint), ("Review", self.review), ("Report", self.report)]:
             button = Gtk.Button.new_with_label(label)
             button.connect("clicked", callback)
             tools.pack_start(button, False, False, 0)
+            self.tool_buttons.append(button)
         self.timer = Gtk.Label(label="02:00:00")
         header.pack_end(self.timer, False, False, 0)
 
         split = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-        split.set_position(500)
+        split.set_position(650)
         outer.pack_start(split, True, True, 0)
         left_scroll = Gtk.ScrolledWindow()
         left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin=18)
@@ -89,9 +95,11 @@ class CkaPracticeApp:
         split.pack1(left_scroll, resize=False, shrink=False)
         self.title = Gtk.Label(xalign=0)
         self.title.set_use_markup(True)
+        self.title.set_name("task-title")
         left.pack_start(self.title, False, False, 0)
         self.status = Gtk.Label(xalign=0)
         self.status.set_line_wrap(True)
+        self.status.set_name("status-message")
         left.pack_start(self.status, False, False, 0)
         self.context = Gtk.Label(xalign=0, label="Context: base\nTask host: controlplane\nConnect with: ssh controlplane")
         left.pack_start(self.context, False, False, 0)
@@ -100,15 +108,65 @@ class CkaPracticeApp:
         self.task = Gtk.Label(xalign=0, yalign=0)
         self.task.set_line_wrap(True)
         self.task.set_selectable(True)
+        self.task.set_name("task-text")
         left.pack_start(self.task, False, False, 0)
 
         terminal_scroll = Gtk.ScrolledWindow()
         self.terminal = Vte.Terminal()
         self.terminal.set_scrollback_lines(10000)
-        self.terminal.set_font_scale(1.1)
+        self.terminal.set_font(Pango.FontDescription("Monospace 13"))
+        self.terminal.connect("key-press-event", self.terminal_key_press)
         terminal_scroll.add(self.terminal)
         split.pack2(terminal_scroll, resize=True, shrink=False)
         self.load_question()
+        GLib.timeout_add_seconds(1, self.update_timer)
+
+    def install_styles(self):
+        provider = Gtk.CssProvider()
+        provider.load_from_data(b"""
+            #task-title { font-size: 20px; font-weight: 700; }
+            #status-message {
+                background: #17324d;
+                color: #f3f8ff;
+                border-radius: 6px;
+                font-size: 15px;
+                font-weight: 700;
+                padding: 10px;
+            }
+            #task-text { font-size: 15px; }
+            button, combobox { font-size: 14px; padding: 5px; }
+        """)
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+    def terminal_key_press(self, _terminal, event):
+        control = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
+        shift = bool(event.state & Gdk.ModifierType.SHIFT_MASK)
+        key = Gdk.keyval_name(event.keyval)
+        if control and shift and key in {"c", "C"}:
+            self.terminal.copy_clipboard_format(Vte.Format.TEXT)
+            return True
+        if control and shift and key in {"v", "V"}:
+            self.terminal.paste_clipboard()
+            return True
+        return False
+
+    def update_timer(self):
+        remaining = 7200
+        if self.started_at is not None:
+            remaining = max(0, 7200 - int(time.monotonic() - self.started_at))
+        hours, remainder = divmod(remaining, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self.timer.set_text(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+        return True
+
+    def set_preparing_controls(self, preparing):
+        self.previous_button.set_sensitive(not preparing and self.question > 1)
+        self.next_button.set_sensitive(not preparing and self.question < 17)
+        self.question_picker.set_sensitive(not preparing)
+        for button in self.tool_buttons:
+            button.set_sensitive(not preparing)
 
     def run(self):
         self.window.show_all()
@@ -118,7 +176,8 @@ class CkaPracticeApp:
     def load_question(self):
         try:
             data = self.request(f"/api/question/{self.question}")
-        except Exception:
+        except Exception as error:
+            self.status.set_text(f"Could not load this task: {error}")
             return
         self.title.set_markup(f"<b>{GLib.markup_escape_text(data['title'])}</b>")
         self.status.set_text("Press Start Task to prepare this task.")
@@ -144,7 +203,7 @@ class CkaPracticeApp:
         if self.preparing:
             return
         self.preparing = True
-        self.start_button.set_sensitive(False)
+        self.set_preparing_controls(True)
         self.status.set_text("Preparing environment. The task button is locked while the VMs reset; this usually takes 30–90 seconds.")
         self.terminal.reset(True, True)
         self.terminal.feed(b"Preparing task environment...\r\nPlease wait while the lab is reset.\r\n")
@@ -159,7 +218,7 @@ class CkaPracticeApp:
 
     def finish_prepare(self, result):
         self.preparing = False
-        self.start_button.set_sensitive(True)
+        self.set_preparing_controls(False)
         if not result.get("ok"):
             self.status.set_text("Preparation failed. Try again.")
             self.terminal.feed(((result.get("output") or "Unknown error") + "\r\n").encode())
@@ -167,8 +226,22 @@ class CkaPracticeApp:
         try:
             self.status.set_text("Environment is ready. Opening the terminal session...")
             argv = ["ssh", "-tt", "-o", "LogLevel=ERROR", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", f"{self.ssh_user}@{self.base_ip}", "bash -i"]
-            self.terminal.spawn_async(Vte.PtyFlags.DEFAULT, str(pathlib.Path.home()), argv, None,
-                                      GLib.SpawnFlags.DEFAULT, None, -1, None, self.terminal_started, None)
+            self.spawn_cancellable = Gio.Cancellable()
+            # Use named arguments. The VTE typelib on Ubuntu 26.04 exposes an
+            # ambiguous positional signature and otherwise shifts cancellable
+            # into the timeout slot.
+            self.terminal.spawn_async(
+                pty_flags=Vte.PtyFlags.DEFAULT,
+                working_directory=str(pathlib.Path.home()),
+                argv=argv,
+                envv=None,
+                spawn_flags=GLib.SpawnFlags.DEFAULT,
+                child_setup=None,
+                timeout=-1,
+                cancellable=self.spawn_cancellable,
+                callback=self.terminal_started,
+                user_data=self,
+            )
         except Exception as error:
             self.status.set_text(f"Environment is ready, but the terminal could not start: {error}")
             self.terminal.feed((f"Terminal startup error: {error}\r\n").encode())
@@ -180,6 +253,7 @@ class CkaPracticeApp:
             self.terminal.feed((f"Terminal startup error: {error}\r\n").encode())
             return
         self.started = True
+        self.started_at = time.monotonic()
         self.start_button.set_label("Reset Task")
         self.status.set_text("Connected to base. Read the task, then ssh to the designated host. Use Validate after you finish.")
         self.terminal.grab_focus()
