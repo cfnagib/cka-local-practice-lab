@@ -31,11 +31,10 @@ for _ in {1..20}; do
   sleep 0.25
 done
 
-# A native VTE window keeps the task and a real Linux terminal together.
+# Use KDE's real Konsole terminal. It is a normal desktop window, so it can be
+# pinned to the taskbar and receives the terminal clipboard shortcuts directly.
 if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
-  # Keep the desktop-launcher process attached to the GTK window. KDE may
-  # otherwise treat a background child as finished and close its new window.
-  exec /usr/bin/python3 "$ROOT_DIR/dashboard/desktop_app.py" "$URL"
+  exec "$ROOT_DIR/dashboard/open-native-terminal.sh"
 else
   xdg-open "$URL" >/dev/null 2>&1 &
 fi

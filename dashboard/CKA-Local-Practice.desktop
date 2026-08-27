@@ -7,5 +7,5 @@ Exec=REPLACE_WITH_PROJECT_PATH/dashboard/launch-dashboard.sh
 Terminal=false
 Categories=Education;Development;
 Icon=utilities-terminal
-StartupWMClass=cka-practice-lab
+StartupWMClass=konsole
 StartupNotify=true
